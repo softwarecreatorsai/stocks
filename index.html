@@ -52,15 +52,6 @@
             background: rgba(15, 23, 42, 0.98);
             backdrop-filter: blur(12px);
         }
-
-        /* Hide scrollbar but keep functionality */
-        ::-webkit-scrollbar {
-            display: none;
-        }
-
-        .safe-bottom {
-            padding-bottom: env(safe-area-inset-bottom);
-        }
     </style>
 </head>
 <body class="relative">
@@ -153,12 +144,11 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.7.0/chart.min.js"></script>
     <script>
-        // Replace with your Finnhub API key
+        // Replace this with your actual Finnhub API key
         const FINNHUB_API_KEY = 'cu8c011r01qhqu5cldo0cu8c011r01qhqu5cldog';
         let watchlist = ['NVDA', 'AAPL', 'META', 'GOOGL'];
         let mainChart = null;
 
-        // Company information
         const companyInfo = {
             'NVDA': {
                 name: 'NVIDIA Corporation',
@@ -181,6 +171,103 @@
                 industry: 'Internet Content & Information'
             }
         };
+
+        // Initialize app when DOM is loaded
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('Initializing app...');
+            initializeApp();
+        });
+
+        async function initializeApp() {
+            try {
+                // Test API connection
+                const testSymbol = 'AAPL';
+                const response = await fetch(`https://finnhub.io/api/v1/quote?symbol=${testSymbol}&token=${FINNHUB_API_KEY}`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                console.log('API Test Response:', data);
+                
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+                
+                // If we get here, API is working
+                console.log('API connection successful');
+                await updateWatchlist();
+                await loadChartData('NVDA');
+                
+            } catch (error) {
+                console.error('Initialization error:', error);
+                document.getElementById('watchlist').innerHTML = `
+                    <div class="glass-card p-4 text-red-400">
+                        <p>Error connecting to API. Please check your API key and try again.</p>
+                        <p class="text-sm mt-2">Error details: ${error.message}</p>
+                    </div>`;
+            }
+        }
+
+        async function fetchStockData(symbol) {
+            try {
+                console.log(`Fetching data for ${symbol}...`);
+                const response = await fetch(`https://finnhub.io/api/v1/quote?symbol=${symbol}&token=${FINNHUB_API_KEY}`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                console.log(`Data received for ${symbol}:`, data);
+                
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+                
+                return data;
+            } catch (error) {
+                console.error(`Error fetching stock data for ${symbol}:`, error);
+                throw error;
+            }
+        }
+
+        async function updateWatchlist() {
+            const watchlistContainer = document.getElementById('watchlist');
+            watchlistContainer.innerHTML = ''; // Clear existing content
+            
+            for (const symbol of watchlist) {
+                try {
+                    // Add loading placeholder
+                    watchlistContainer.innerHTML += `
+                        <div id="${symbol}-card" class="glass-card p-4">
+                            <div class="animate-pulse flex space-x-4">
+                                <div class="flex-1 space-y-4 py-1">
+                                    <div class="h-4 bg-gray-700 rounded w-3/4"></div>
+                                    <div class="space-y-3">
+                                        <div class="h-4 bg-gray-700 rounded"></div>
+                                        <div class="h-4 bg-gray-700 rounded w-5/6"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>`;
+                    
+                    const data = await fetchStockData(symbol);
+                    if (data) {
+                        // Replace loading placeholder with actual data
+                        document.getElementById(`${symbol}-card`).outerHTML = createStockCard(symbol, data);
+                    }
+                } catch (error) {
+                    console.error(`Error updating ${symbol}:`, error);
+                    document.getElementById(`${symbol}-card`).innerHTML = `
+                        <div class="p-4">
+                            <p class="text-red-400">Error loading ${symbol}</p>
+                            <p class="text-sm text-red-400 mt-2">${error.message}</p>
+                        </div>`;
+                }
+            }
+        }
 
         function createStockCard(symbol, data) {
             const priceChange = data.c - data.pc;
@@ -304,4 +391,53 @@
                     responsive: true,
                     maintainAspectRatio: false,
                     interaction: {
-                        intersect
+                        intersect: false,
+                        mode: 'index'
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false,
+                            backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                            titleColor: '#fff',
+                            bodyColor: '#fff',
+                            borderColor: 'rgba(255, 255, 255, 0.1)',
+                            borderWidth: 1
+                        }
+                    },
+                    scales: {
+                        x: {
+                            type: 'time',
+                            time: {
+                                unit: 'day'
+                            },
+                            grid: {
+                                display: false
+                            },
+                            ticks: {
+                                color: '#94a3b8'
+                            }
+                        },
+                        y: {
+                            grid: {
+                                color: 'rgba(148, 163, 184, 0.1)'
+                            },
+                            ticks: {
+                                color: '#94a3b8'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function changeTimeframe(timeframe) {
+            // TODO: Implement timeframe changes
+            console.log('Changing timeframe to:', timeframe);
+        }
+    </script>
+</body>
+</html>
